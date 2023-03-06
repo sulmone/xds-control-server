@@ -24,6 +24,7 @@ import (
 
 	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
 	discoverygrpc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	v3discoverygrpc "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	endpointservice "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
 	listenerservice "github.com/envoyproxy/go-control-plane/envoy/service/listener/v3"
 	routeservice "github.com/envoyproxy/go-control-plane/envoy/service/route/v3"
@@ -62,7 +63,7 @@ func RunServer(ctx context.Context, srv3 serverv3.Server, port uint) {
 		log.Fatal(err)
 	}
 
-	registerServer(grpcServer, srv3)
+	v3discoverygrpc.RegisterAggregatedDiscoveryServiceServer(grpcServer, srv3)
 
 	log.Printf("management server listening on %d\n", port)
 	if err = grpcServer.Serve(lis); err != nil {

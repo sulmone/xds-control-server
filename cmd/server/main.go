@@ -45,7 +45,7 @@ func init() {
 	flag.UintVar(&port, "port", 18000, "xDS management server port")
 
 	// Tell Envoy to use this Node ID
-	flag.StringVar(&nodeID, "nodeID", "test-id", "Node ID")
+	flag.StringVar(&nodeID, "nodeID", "xds-control-node", "Node ID")
 
 	// Define the directory to watch for Envoy configuration files
 	flag.StringVar(&watchDirectoryFileName, "watchDirectoryFileName", "config/config.yaml", "full path to directory to watch for files")
@@ -55,7 +55,7 @@ func main() {
 	flag.Parse()
 
 	// Create a cache
-	cache := cache.NewSnapshotCache(false, cache.IDHash{}, l)
+	cache := cache.NewSnapshotCache(true, cache.IDHash{}, l)
 
 	// Create a processor
 	proc := processor.NewProcessor(context.Background(),

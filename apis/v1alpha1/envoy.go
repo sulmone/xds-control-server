@@ -20,8 +20,15 @@ type EnvoyConfig struct {
 }
 
 type Spec struct {
-	Listeners []Listener `yaml:"listeners"`
-	Clusters  []Cluster  `yaml:"clusters"`
+	ServerListeners []ServerListener `yaml:"server_listeners"`
+	ClientListeners []Listener       `yaml:"client_listeners"`
+	Clusters        []Cluster        `yaml:"clusters"`
+}
+
+type ServerListener struct {
+	Name    string `yaml:"name"`
+	Address string `yaml:"address"`
+	Port    uint32 `yaml:"port"`
 }
 
 type Listener struct {

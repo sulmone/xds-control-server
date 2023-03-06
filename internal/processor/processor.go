@@ -55,10 +55,11 @@ func NewProcessor(ctx context.Context, cache cache.SnapshotCache, nodeID string,
 		snapshotVersion: rand.Int63n(1000),
 		FieldLogger:     log,
 		xdsCache: xdscache.XDSCache{
-			Listeners: make(map[string]resources.Listener),
-			Clusters:  make(map[string]resources.Cluster),
-			Routes:    make(map[string]resources.Route),
-			Endpoints: make(map[string]resources.Endpoint),
+			ServerListeners: make(map[string]resources.ServerListener),
+			Listeners:       make(map[string]resources.Listener),
+			Clusters:        make(map[string]resources.Cluster),
+			Routes:          make(map[string]resources.Route),
+			Endpoints:       make(map[string]resources.Endpoint),
 		},
 	}
 }
@@ -87,8 +88,12 @@ func (p *Processor) ProcessFile(file watcher.NotifyMessage) {
 		return
 	}
 
+	for _, sl := range envoyConfig.ServerListeners {
+		p.xdsCache.AddServerListener(sl.Name, sl.Address, sl.Port)
+	}
+
 	// Parse Listeners
-	for _, l := range envoyConfig.Listeners {
+	for _, l := range envoyConfig.ClientListeners {
 		var lRoutes []string
 		for _, lr := range l.Routes {
 			lRoutes = append(lRoutes, lr.Name)
