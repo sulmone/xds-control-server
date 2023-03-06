@@ -7,5 +7,10 @@ GO_BUILD_VARS = \
 
 GO_LDFLAGS := -s -w $(patsubst %,-X %, $(GO_BUILD_VARS))
 
+ifndef $(GOPATH)
+	GOPATH=$(shell go env GOPATH)
+	export GOPATH
+endif
+
 install: ## Build and install the binary
 	go build -o $(GOPATH)/bin/envoy-xds-server -mod=readonly -v -ldflags="$(GO_LDFLAGS)" $(MODULE)/cmd/server

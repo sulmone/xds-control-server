@@ -15,9 +15,11 @@
 package processor
 
 import (
+	"context"
 	"math"
 	"math/rand"
 	"os"
+	"reflect"
 	"strconv"
 
 	"github.com/stevesloka/envoy-xds-server/internal/resources"
@@ -27,11 +29,13 @@ import (
 	"github.com/stevesloka/envoy-xds-server/internal/xdscache"
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
+	v3resource "github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/stevesloka/envoy-xds-server/internal/watcher"
 )
 
 type Processor struct {
+	ctx    context.Context
 	cache  cache.SnapshotCache
 	nodeID string
 
@@ -43,8 +47,9 @@ type Processor struct {
 	xdsCache xdscache.XDSCache
 }
 
-func NewProcessor(cache cache.SnapshotCache, nodeID string, log logrus.FieldLogger) *Processor {
+func NewProcessor(ctx context.Context, cache cache.SnapshotCache, nodeID string, log logrus.FieldLogger) *Processor {
 	return &Processor{
+		ctx:             ctx,
 		cache:           cache,
 		nodeID:          nodeID,
 		snapshotVersion: rand.Int63n(1000),
@@ -106,15 +111,16 @@ func (p *Processor) ProcessFile(file watcher.NotifyMessage) {
 		}
 	}
 
+	resources := map[v3resource.Type][]types.Resource{
+		v3resource.ListenerType: resourceSlice(p.xdsCache.ListenerContents()),
+		v3resource.RouteType:    resourceSlice(p.xdsCache.RouteContents()),
+		v3resource.ClusterType:  resourceSlice(p.xdsCache.ClusterContents()),
+		v3resource.EndpointType: resourceSlice(p.xdsCache.EndpointsContents()),
+	}
 	// Create the snapshot that we'll serve to Envoy
-	snapshot := cache.NewSnapshot(
-		p.newSnapshotVersion(),         // version
-		p.xdsCache.EndpointsContents(), // endpoints
-		p.xdsCache.ClusterContents(),   // clusters
-		p.xdsCache.RouteContents(),     // routes
-		p.xdsCache.ListenerContents(),  // listeners
-		[]types.Resource{},             // runtimes
-		[]types.Resource{},             // secrets
+	snapshot, err := cache.NewSnapshot(
+		p.newSnapshotVersion(), // version
+		resources,
 	)
 
 	if err := snapshot.Consistent(); err != nil {
@@ -124,8 +130,19 @@ func (p *Processor) ProcessFile(file watcher.NotifyMessage) {
 	p.Debugf("will serve snapshot %+v", snapshot)
 
 	// Add the snapshot to the cache
-	if err := p.cache.SetSnapshot(p.nodeID, snapshot); err != nil {
+	if err := p.cache.SetSnapshot(p.ctx, p.nodeID, snapshot); err != nil {
 		p.Errorf("snapshot error %q for %+v", err, snapshot)
 		os.Exit(1)
 	}
+}
+
+// resourceSlice accepts a slice of any type of proto messages and returns a
+// slice of types.Resource.  Will panic if there is an input type mismatch.
+func resourceSlice(i interface{}) []types.Resource {
+	v := reflect.ValueOf(i)
+	rs := make([]types.Resource, v.Len())
+	for i := 0; i < v.Len(); i++ {
+		rs[i] = v.Index(i).Interface().(types.Resource)
+	}
+	return rs
 }
