@@ -1,4 +1,4 @@
-MODULE = github.com/stevesloka/envoy-xds-server
+MODULE = github.com/sulmone/xds-control-server
 
 GO_BUILD_VARS = \
 	github.com/projectcontour/contour/internal/build.Version=${BUILD_VERSION} \
@@ -13,4 +13,4 @@ ifndef $(GOPATH)
 endif
 
 install: ## Build and install the binary
-	go build -o $(GOPATH)/bin/envoy-xds-server -mod=readonly -v -ldflags="$(GO_LDFLAGS)" $(MODULE)/cmd/server
+	go build -o $(GOPATH)/bin/xds-control-server -mod=readonly -v -ldflags="$(GO_LDFLAGS)" $(MODULE)/cmd/server

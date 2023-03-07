@@ -25,7 +25,7 @@ import (
 
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/golang/protobuf/proto"
-	"github.com/stevesloka/envoy-xds-server/internal/utils"
+	"github.com/sulmone/xds-control-server/internal/utils"
 	"google.golang.org/protobuf/types/known/anypb"
 
 	v3clusterpb "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -101,16 +101,29 @@ type ResourceParams struct {
 
 // DefaultClientResources returns a set of resources (LDS, RDS, CDS, EDS) for a
 // client to generically connect to one server.
-func DefaultClientResources(params ResourceParams) UpdateOptions {
-	routeConfigName := "route-" + params.DialTarget
-	clusterName := "cluster-" + params.DialTarget
-	endpointsName := "endpoints-" + params.DialTarget
+func DefaultClientResources(params []*ResourceParams) UpdateOptions {
+	var listeners []*v3listenerpb.Listener
+	var routes []*v3routepb.RouteConfiguration
+	var clusters []*v3clusterpb.Cluster
+	var endpoints []*v3endpointpb.ClusterLoadAssignment
+	nodeID := params[0].NodeID
+
+	for _, param := range params {
+		routeConfigName := "route-" + param.DialTarget
+		clusterName := "cluster-" + param.DialTarget
+		endpointsName := "endpoints-" + param.DialTarget
+		listeners = append(listeners, DefaultClientListener(param.DialTarget, routeConfigName))
+		routes = append(routes, DefaultRouteConfig(routeConfigName, param.DialTarget, clusterName))
+		clusters = append(clusters, DefaultCluster(clusterName, endpointsName, param.SecLevel))
+		endpoints = append(endpoints, DefaultEndpoint(endpointsName, param.Host, []uint32{param.Port}))
+	}
+
 	return UpdateOptions{
-		NodeID:    params.NodeID,
-		Listeners: []*v3listenerpb.Listener{DefaultClientListener(params.DialTarget, routeConfigName)},
-		Routes:    []*v3routepb.RouteConfiguration{DefaultRouteConfig(routeConfigName, params.DialTarget, clusterName)},
-		Clusters:  []*v3clusterpb.Cluster{DefaultCluster(clusterName, endpointsName, params.SecLevel)},
-		Endpoints: []*v3endpointpb.ClusterLoadAssignment{DefaultEndpoint(endpointsName, params.Host, []uint32{params.Port})},
+		NodeID:    nodeID,
+		Listeners: listeners,
+		Routes:    routes,
+		Clusters:  clusters,
+		Endpoints: endpoints,
 	}
 }
 

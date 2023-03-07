@@ -1,4 +1,4 @@
-module github.com/stevesloka/envoy-xds-server
+module github.com/sulmone/xds-control-server
 
 go 1.20
 

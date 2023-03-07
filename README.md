@@ -1,6 +1,6 @@
-# Envoy XDS Server
+# XDS Control Server
 
-This is a sample repo which demonstrates how to spin up an xDS Server for Envoy Proxy. 
+This is a sample repo which demonstrates how to spin up an xDS Control Server
 
 ## Sample Config File
 

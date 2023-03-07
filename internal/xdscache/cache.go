@@ -15,100 +15,43 @@
 package xdscache
 
 import (
-	v3clusterpb "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	v3endpointpb "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
-	v3listenerpb "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
-	v3routepb "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	"github.com/stevesloka/envoy-xds-server/internal/resources"
+	"fmt"
+	"net"
+
+	"github.com/sulmone/xds-control-server/internal/resources"
 )
 
 type XDSCache struct {
-	ServerListeners map[string]resources.ServerListener
-	Listeners       map[string]resources.Listener
-	Routes          map[string]resources.Route
-	Clusters        map[string]resources.Cluster
-	Endpoints       map[string]resources.Endpoint
+	Services map[string]resources.Service
 }
 
-func (xds *XDSCache) ClusterContents() []*v3clusterpb.Cluster {
-	var r []*v3clusterpb.Cluster
-
-	for _, c := range xds.Clusters {
-		r = append(r, resources.MakeCluster(c.Name))
-	}
-
-	return r
-}
-
-func (xds *XDSCache) RouteContents() []*v3routepb.RouteConfiguration {
-	var routesArray []resources.Route
-	for _, r := range xds.Routes {
-		routesArray = append(routesArray, r)
-	}
-	return []*v3routepb.RouteConfiguration{resources.MakeRoute(routesArray)}
-}
-
-func (xds *XDSCache) ListenerContents() []*v3listenerpb.Listener {
-	var r []*v3listenerpb.Listener
-
-	for _, l := range xds.Listeners {
-		r = append(r, resources.MakeHTTPListener(l.Name, l.RouteNames[0], l.Address, l.Port))
-	}
-
-	for _, sl := range xds.ServerListeners {
-		r = append(r, resources.DefaultServerListener(sl.Address, sl.Port, resources.SecurityLevelNone))
-	}
-	return r
-}
-
-func (xds *XDSCache) EndpointsContents() []*v3endpointpb.ClusterLoadAssignment {
-	var r []*v3endpointpb.ClusterLoadAssignment
-
-	for _, c := range xds.Clusters {
-		r = append(r, resources.MakeEndpoint(c.Name, c.Endpoints))
-	}
-
-	return r
-}
-
-func (xds *XDSCache) AddServerListener(name string, address string, port uint32) {
-	xds.ServerListeners[name] = resources.ServerListener{
+func (xds *XDSCache) AddService(name string, address string, port uint32) {
+	xds.Services[name] = resources.Service{
 		Name:    name,
 		Address: address,
 		Port:    port,
 	}
 }
 
-func (xds *XDSCache) AddListener(name string, routeNames []string, address string, port uint32) {
-	xds.Listeners[name] = resources.Listener{
-		Name:       name,
-		Address:    address,
-		Port:       port,
-		RouteNames: routeNames,
+func (xds *XDSCache) ServiceContents(nodeID string) []*resources.ResourceParams {
+	var r []*resources.ResourceParams
+
+	for _, service := range xds.Services {
+		print(service.Address)
+		ips, err := net.LookupIP(service.Address)
+		if err != nil {
+			fmt.Printf("Could not get IPs for %s: %v\n", service.Address, err)
+		}
+		ip := ips[0].String()
+		params := resources.ResourceParams{
+			DialTarget: service.Name,
+			NodeID:     nodeID,
+			Host:       ip,
+			Port:       service.Port,
+			SecLevel:   resources.SecurityLevelNone,
+		}
+
+		r = append(r, &params)
 	}
-}
-
-func (xds *XDSCache) AddRoute(name, prefix string, clusters []string) {
-	xds.Routes[name] = resources.Route{
-		Name:    name,
-		Prefix:  prefix,
-		Cluster: clusters[0],
-	}
-}
-
-func (xds *XDSCache) AddCluster(name string) {
-	xds.Clusters[name] = resources.Cluster{
-		Name: name,
-	}
-}
-
-func (xds *XDSCache) AddEndpoint(clusterName, upstreamHost string, upstreamPort uint32) {
-	cluster := xds.Clusters[clusterName]
-
-	cluster.Endpoints = append(cluster.Endpoints, resources.Endpoint{
-		UpstreamHost: upstreamHost,
-		UpstreamPort: upstreamPort,
-	})
-
-	xds.Clusters[clusterName] = cluster
+	return r
 }

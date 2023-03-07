@@ -18,13 +18,13 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/stevesloka/envoy-xds-server/apis/v1alpha1"
+	svm "github.com/sulmone/xds-control-server/apis/service_mesh"
 	"gopkg.in/yaml.v2"
 )
 
 // parseYaml takes in a yaml envoy config and returns a typed version
-func parseYaml(file string) (*v1alpha1.EnvoyConfig, error) {
-	var config v1alpha1.EnvoyConfig
+func parseYaml(file string) (*svm.ServiceMeshConfig, error) {
+	var config svm.ServiceMeshConfig
 
 	yamlFile, err := ioutil.ReadFile(file)
 	if err != nil {

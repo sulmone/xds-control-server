@@ -7,9 +7,9 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	v3server "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	log "github.com/sirupsen/logrus"
-	"github.com/stevesloka/envoy-xds-server/internal/processor"
-	"github.com/stevesloka/envoy-xds-server/internal/server"
-	"github.com/stevesloka/envoy-xds-server/internal/watcher"
+	"github.com/sulmone/xds-control-server/internal/processor"
+	"github.com/sulmone/xds-control-server/internal/server"
+	"github.com/sulmone/xds-control-server/internal/watcher"
 )
 
 var (
@@ -32,7 +32,7 @@ func init() {
 	flag.StringVar(&nodeID, "nodeID", "xds-node", "Node ID")
 
 	// Define the directory to watch for Envoy configuration files
-	flag.StringVar(&watchDirectoryFileName, "watchDirectoryFileName", "config/config.yaml", "full path to directory to watch for files")
+	flag.StringVar(&watchDirectoryFileName, "watchDirectoryFileName", "config/service_mesh.yaml", "full path to directory to watch for files")
 }
 
 func main() {
