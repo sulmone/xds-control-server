@@ -18,6 +18,7 @@ import (
 	"context"
 	"math"
 	"math/rand"
+	"net"
 	"os"
 	"reflect"
 	"strconv"
@@ -116,13 +117,21 @@ func (p *Processor) ProcessFile(file watcher.NotifyMessage) {
 		}
 	}
 
-	myResources := resources.DefaultClientResources(resources.ResourceParams{
+	params := resources.ResourceParams{
 		DialTarget: "rate-service",
 		NodeID:     p.nodeID,
-		Host:       "10.78.2.224",
+		Host:       "ch-dsulmone2",
 		Port:       9101,
 		SecLevel:   resources.SecurityLevelNone,
-	})
+	}
+
+	ips, err := net.LookupIP(params.Host)
+	if err != nil {
+		p.Errorf("Could not get IPs: %v\n", err)
+	}
+	params.Host = ips[0].String()
+	p.Printf(params.Host)
+	myResources := resources.DefaultClientResources(params)
 
 	// TODO: Work on adding server listeners
 	// inboundLis := resources.DefaultServerListener("0.0.0.0", 9101, resources.SecurityLevelNone)
