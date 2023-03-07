@@ -1,0 +1,19 @@
+{
+  "xds_servers": [
+    {
+      "server_uri": "ch-dsulmone2:18000",
+      "channel_creds": [
+        {
+          "type": "insecure"
+        }
+      ],
+      "server_features": ["xds_v3"]
+    }
+  ],
+  "node": {
+    "id": "xds-node",
+    "cluster": "endpoints-rate-service"
+  },
+  "server_listener_resource_name_template": "grpc/server=xds.resource.listening_address=%s",
+  "client_listener_resource_name_template": "%s"
+}

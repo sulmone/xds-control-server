@@ -1,17 +1,3 @@
-//   Copyright Steve Sloka 2021
-//
-//   Licensed under the Apache License, Version 2.0 (the "License");
-//   you may not use this file except in compliance with the License.
-//   You may obtain a copy of the License at
-//
-//       http://www.apache.org/licenses/LICENSE-2.0
-//
-//   Unless required by applicable law or agreed to in writing, software
-//   distributed under the License is distributed on an "AS IS" BASIS,
-//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//   See the License for the specific language governing permissions and
-//   limitations under the License.
-
 package main
 
 import (
@@ -19,7 +5,7 @@ import (
 	"flag"
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
-	serverv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
+	v3server "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	log "github.com/sirupsen/logrus"
 	"github.com/stevesloka/envoy-xds-server/internal/processor"
 	"github.com/stevesloka/envoy-xds-server/internal/server"
@@ -31,8 +17,6 @@ var (
 
 	watchDirectoryFileName string
 	port                   uint
-	basePort               uint
-	mode                   string
 
 	nodeID string
 )
@@ -45,7 +29,7 @@ func init() {
 	flag.UintVar(&port, "port", 18000, "xDS management server port")
 
 	// Tell Envoy to use this Node ID
-	flag.StringVar(&nodeID, "nodeID", "xds-control-node", "Node ID")
+	flag.StringVar(&nodeID, "nodeID", "xds-node", "Node ID")
 
 	// Define the directory to watch for Envoy configuration files
 	flag.StringVar(&watchDirectoryFileName, "watchDirectoryFileName", "config/config.yaml", "full path to directory to watch for files")
@@ -57,6 +41,7 @@ func main() {
 	// Create a cache
 	cache := cache.NewSnapshotCache(true, cache.IDHash{}, l)
 
+	log.Printf("Starting processor with nodeID: %s", nodeID)
 	// Create a processor
 	proc := processor.NewProcessor(context.Background(),
 		cache, nodeID, log.WithField("context", "processor"))
@@ -78,7 +63,7 @@ func main() {
 	go func() {
 		// Run the xDS server
 		ctx := context.Background()
-		srv := serverv3.NewServer(ctx, cache, nil)
+		srv := v3server.NewServer(ctx, cache, nil)
 		server.RunServer(ctx, srv, port)
 	}()
 

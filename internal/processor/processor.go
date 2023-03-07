@@ -116,16 +116,30 @@ func (p *Processor) ProcessFile(file watcher.NotifyMessage) {
 		}
 	}
 
-	resources := map[v3resource.Type][]types.Resource{
-		v3resource.ListenerType: resourceSlice(p.xdsCache.ListenerContents()),
-		v3resource.RouteType:    resourceSlice(p.xdsCache.RouteContents()),
-		v3resource.ClusterType:  resourceSlice(p.xdsCache.ClusterContents()),
-		v3resource.EndpointType: resourceSlice(p.xdsCache.EndpointsContents()),
+	myResources := resources.DefaultClientResources(resources.ResourceParams{
+		DialTarget: "rate-service",
+		NodeID:     p.nodeID,
+		Host:       "10.78.2.224",
+		Port:       9101,
+		SecLevel:   resources.SecurityLevelNone,
+	})
+
+	// TODO: Work on adding server listeners
+	// inboundLis := resources.DefaultServerListener("0.0.0.0", 9101, resources.SecurityLevelNone)
+	// myResources.Listeners = append(myResources.Listeners, inboundLis)
+
+	// Create a snapshot with the passed in resources.
+	resourceMap := map[v3resource.Type][]types.Resource{
+		v3resource.ListenerType: resourceSlice(myResources.Listeners),
+		v3resource.RouteType:    resourceSlice(myResources.Routes),
+		v3resource.ClusterType:  resourceSlice(myResources.Clusters),
+		v3resource.EndpointType: resourceSlice(myResources.Endpoints),
 	}
+
 	// Create the snapshot that we'll serve to Envoy
 	snapshot, err := cache.NewSnapshot(
 		p.newSnapshotVersion(), // version
-		resources,
+		resourceMap,
 	)
 
 	if err := snapshot.Consistent(); err != nil {
