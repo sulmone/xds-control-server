@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"flag"
+	"sync"
 
+	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	v3discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	v3server "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	log "github.com/sirupsen/logrus"
@@ -20,6 +23,82 @@ var (
 
 	nodeID string
 )
+
+type logger struct{}
+
+func (logger logger) Infof(format string, args ...interface{}) {
+	l.Infof(format, args...)
+}
+func (logger logger) Errorf(format string, args ...interface{}) {
+	l.Errorf(format, args...)
+}
+func (cb *callbacks) Report() {
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	l.WithFields(log.Fields{"fetches": cb.fetches, "requests": cb.requests}).Info("cb.Report()  callbacks")
+}
+func (cb *callbacks) OnStreamOpen(ctx context.Context, id int64, typ string) error {
+	l.Infof("OnStreamOpen %d open for Type [%s]", id, typ)
+	return nil
+}
+func (cb *callbacks) OnStreamClosed(id int64, node *core.Node) {
+	l.Infof("OnStreamClosed nodeId[%s] %d closed", node.Id, id)
+}
+func (cb *callbacks) OnStreamRequest(id int64, r *v3discovery.DiscoveryRequest) error {
+	l.Infof("OnStreamRequest %d  Request[%v]", id, r.TypeUrl)
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	cb.requests++
+	if cb.signal != nil {
+		close(cb.signal)
+		cb.signal = nil
+	}
+	return nil
+}
+func (cb *callbacks) OnStreamResponse(ctx context.Context, id int64, req *v3discovery.DiscoveryRequest, resp *v3discovery.DiscoveryResponse) {
+	l.Infoln(resp.GetResources())
+	l.Infof("OnStreamResponse... %d   Request [%v],  Response[%v]", id, req.TypeUrl, resp.TypeUrl)
+	cb.Report()
+}
+func (cb *callbacks) OnFetchRequest(ctx context.Context, req *v3discovery.DiscoveryRequest) error {
+	l.Infof("OnFetchRequest... Request [%v]", req.TypeUrl)
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	cb.fetches++
+	if cb.signal != nil {
+		close(cb.signal)
+		cb.signal = nil
+	}
+	return nil
+}
+func (cb *callbacks) OnFetchResponse(req *v3discovery.DiscoveryRequest, resp *v3discovery.DiscoveryResponse) {
+	l.Infof("OnFetchResponse... Resquest[%v],  Response[%v]", req.TypeUrl, resp.TypeUrl)
+}
+
+func (cb *callbacks) OnDeltaStreamClosed(id int64, node *core.Node) {
+	l.Infof("OnDeltaStreamClosed nodeId[%s]... %v", node.Id, id)
+}
+
+func (cb *callbacks) OnDeltaStreamOpen(ctx context.Context, id int64, typ string) error {
+	l.Infof("OnDeltaStreamOpen... %v  of type %s", id, typ)
+	return nil
+}
+
+func (c *callbacks) OnStreamDeltaRequest(i int64, request *v3discovery.DeltaDiscoveryRequest) error {
+	l.Infof("OnStreamDeltaRequest... %v  of type %s", i, request)
+	return nil
+}
+
+func (c *callbacks) OnStreamDeltaResponse(i int64, request *v3discovery.DeltaDiscoveryRequest, response *v3discovery.DeltaDiscoveryResponse) {
+	l.Infof("OnStreamDeltaResponse... %v  of type %s", i, request)
+}
+
+type callbacks struct {
+	signal   chan struct{}
+	fetches  int
+	requests int
+	mu       sync.Mutex
+}
 
 func init() {
 	l = log.New()
@@ -61,9 +140,15 @@ func main() {
 	}()
 
 	go func() {
+		signal := make(chan struct{})
+		cb := &callbacks{
+			signal:   signal,
+			fetches:  0,
+			requests: 0,
+		}
 		// Run the xDS server
 		ctx := context.Background()
-		srv := v3server.NewServer(ctx, cache, nil)
+		srv := v3server.NewServer(ctx, cache, cb)
 		server.RunServer(ctx, srv, port)
 	}()
 
